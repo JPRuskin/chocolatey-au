@@ -15,47 +15,35 @@ param(
         }
     ),
 
-    # Clean up uncommitted files
+    # Clean up uncommitted changes
     [switch]$Clean,
 
-    # Do not build chocolatey package
-    [switch]$NoChocoPackage
+    # Does not build the Chocolatey package if true
+    [Alias("NoChocoPackage")]
+    [switch]$SkipPackage
 )
-
-function zip_module() {
-    Write-Host "Creating 7z package"
-
-    $zip_path = "$build_dir\${module_name}_$version.7z"
-    $cmd = "$Env:ChocolateyInstall/tools/7z.exe a '$zip_path' '$module_path' '$installer_path'"
-    $cmd | Invoke-Expression | Out-Null
-    if (!(Test-Path $zip_path)) { throw "Failed to build 7z package" }
-}
-
-function build_chocolatey_package {
-    if ($NoChocoPackage) { Write-Host "Skipping chocolatey package build"; return }
-
-    & $PSScriptRoot/chocolatey/build-package.ps1
-    Move-Item "$PSScriptRoot/chocolatey/${module_name}.$version.nupkg" $build_dir
-}
-
-function create_help() {
-    Write-Host 'Creating module help'
-
-    $help_dir = "$module_path/en-US"
-    New-Item -Type Directory -Force $help_dir | Out-Null
-    Get-Content $PSScriptRoot/README.md | Select-Object -Skip 4 | Set-Content "$help_dir/about_${module_name}.help.txt" -Encoding ascii
-}
-
-if ($Clean) { git clean -Xfd -e vars.ps1; return }
-
 $ErrorActionPreference = 'Stop'
 Push-Location $PSScriptRoot -StackName BuildScript
 
 try {
-    Build-Module -SemVer $SemVer
-    # create_help
-    # zip_module
-    # build_chocolatey_package
+    if ($Clean) {
+        git clean -Xfd -e vars.ps1; return
+    }
+
+    # Build the module
+    $Module = Build-Module -SemVer $SemVer -Passthru
+
+    # Create a help file for the module, based on the Readme
+    $HelpFolder = Join-Path $Module.ModuleBase "en-US"
+    if (-not (Test-Path $HelpFolder -PathType Container)) {
+        $null = New-Item -Path $HelpFolder -ItemType Directory
+    }
+    Get-Content $PSScriptRoot/README.md | Select-Object -Skip 4 | Set-Content $HelpFolder/about_Chocolatey-AU.help.txt -Encoding ascii
+    
+    # Create the Chocolatey package, if required
+    if (-not $SkipPackage) {
+        choco pack $PSScriptRoot\chocolatey\chocolatey-au.nuspec --version $Module.Version
+    }
 } finally {
     Pop-Location -StackName BuildScript
 }

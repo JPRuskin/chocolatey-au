@@ -6,7 +6,7 @@ $s = {
     git_4windows
 
     pester
-    cinst papercut
+    #cinst papercut  # This is only used in currently commented-out tests
 }
 
 function git_4windows() {
