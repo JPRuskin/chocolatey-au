@@ -15,9 +15,6 @@ param(
         }
     ),
 
-    # Clean up uncommitted changes
-    [switch]$Clean,
-
     # Does not build the Chocolatey package if true
     [Alias("NoChocoPackage")]
     [switch]$SkipPackage
@@ -26,10 +23,6 @@ $ErrorActionPreference = 'Stop'
 Push-Location $PSScriptRoot -StackName BuildScript
 
 try {
-    if ($Clean) {
-        git clean -Xfd -e vars.ps1; return
-    }
-
     # Build the module
     $Module = Build-Module -SemVer $SemVer -Passthru
 
@@ -40,9 +33,18 @@ try {
     }
     Get-Content $PSScriptRoot/README.md | Select-Object -Skip 4 | Set-Content $HelpFolder/about_Chocolatey-AU.help.txt -Encoding ascii
     
-    # Create the Chocolatey package, if required
+    # Create the packages
     if (-not $SkipPackage) {
-        choco pack $PSScriptRoot\chocolatey\chocolatey-au.nuspec --version $Module.Version
+        $OutputFolder = Resolve-Path $PSScriptRoot\output\
+
+        choco pack $PSScriptRoot\chocolatey\chocolatey-au.nuspec --version $Module.Version --output $OutputFolder
+
+        try {
+            Register-PSRepository -Name "$(($RepoName = New-Guid))" -SourceLocation $OutputFolder -PublishLocation $OutputFolder
+            Publish-Module -Path $Module.ModuleBase -Repository $RepoName
+        } finally {
+            Unregister-PSRepository -Name $RepoName
+        }
     }
 } finally {
     Pop-Location -StackName BuildScript

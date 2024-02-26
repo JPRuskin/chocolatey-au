@@ -4,7 +4,7 @@
   <metadata>
     <id>chocolatey-au</id>
     <title>Chocolatey Automatic Package Updater Module</title>
-    <version>0.1.0</version>
+    <version>$version$</version>
     <authors>Chocolatey Community</authors>
     <owners>chocolatey-community</owners>
     <summary>Chocolatey-AU is a Powershell module that helps you automate Chocolatey package updates</summary>
